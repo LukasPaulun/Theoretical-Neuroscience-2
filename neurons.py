@@ -558,7 +558,7 @@ def plot_spikes(neuron_list: Iterable,
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('Neuron')
     if title == None:
-        ax.set_title('Spike train')
+        ax.set_title('Spike trains')
     else:
         ax.set_title(str(title))
 
