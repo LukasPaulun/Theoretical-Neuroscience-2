@@ -6,8 +6,8 @@ Contains the module neurons.py which can be used to
   - create current generators
   - connect such neurons or current generators to LIF neurons
   - simulate the membrance trace of the LIF neuron
-  - extact statistics, e.g. about the ISIs
-  - create various plots
+  - extract statistics, e.g. about the ISIs
+  - create various plots, e.g. spike trains, membrane potential traces, ISI histograms
   
 See the file example.py for an example of how to create Poisson neurons, generate spike trains, connect them to an LIF neuron and simulate its membrane potential.
 
