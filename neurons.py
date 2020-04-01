@@ -544,7 +544,7 @@ def plot_spikes(neuron_list: Iterable,
         Title for the plot. Default is None.
     """
 
-    assert type(neuron_list) == Iterable, 'neuron_list must be of type np.ndarray'
+    assert iter(neuron_list), 'neuron_list must be of type np.ndarray'
 
     fig, ax = plt.subplots(1,1, figsize=(14,7))
 
