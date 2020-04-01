@@ -11,5 +11,5 @@ Contains the module neurons.py which can be used to
   
 See the file example.py for an example of how to create Poisson neurons, generate spike trains, connect them to an LIF neuron and simulate its membrane potential.
 
-# Connect with colab
+### Connect with colab
 First, the user will have to clone this github repository into her own google drive. Then, colab notebooks can be created from the template colab_template.ipynb, which automatically import the latest version of the module neurons.py.
