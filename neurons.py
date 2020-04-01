@@ -543,7 +543,7 @@ def plot_spikes(neuron_list, title=None):
 
     for ii, neuron in enumerate(neuron_list):
         for spike_time in neuron.time[neuron.spikes > 0]:
-            ax.plot([spike_time, spike_time], [ii+0.95, ii+1.05], color='black')
+            ax.plot([spike_time, spike_time], [ii+0.95, ii+1.05], color='red')
 
     sim_time = max([neuron.sim_time for neuron in neuron_list])
     ax.set_xlim([0, sim_time])
