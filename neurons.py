@@ -1,5 +1,3 @@
-# Delete two lines to see how quick git and drive are
-
 from typing import Union, Iterable
 import numpy as np
 import matplotlib
