@@ -1,5 +1,4 @@
-# Add a line locally
-# Add a second line in spyder
+# Delete two lines to see how quick git and drive are
 
 from typing import Union
 import numpy as np
