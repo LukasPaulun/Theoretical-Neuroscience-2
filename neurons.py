@@ -1,6 +1,6 @@
 # Delete two lines to see how quick git and drive are
 
-from typing import Union
+from typing import Union, Iterable
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -533,17 +533,26 @@ class CurrentGenerator:
         self.current[start_index:stop_index] = current
 
 
-def plot_spikes(neuron_list, title=None):
+def plot_spikes(neuron_list: Iterable,
+                title: str = None):
     """
+    Plot spike trains for a given array of neurons
+
+    Parameter
+    ----------
+    neuron_list : Iterable
+        list or array of neurons to plot the spike trains from
+    title : str, optional
+        Title for the plot. Default is None.
     """
 
-    assert type(neuron_list) == np.ndarray, 'neuron_list must be of type np.ndarray'
+    assert type(neuron_list) == Iterable, 'neuron_list must be of type np.ndarray'
 
     fig, ax = plt.subplots(1,1, figsize=(14,7))
 
     for ii, neuron in enumerate(neuron_list):
         for spike_time in neuron.time[neuron.spikes > 0]:
-            ax.plot([spike_time, spike_time], [ii+0.95, ii+1.05], color='red')
+            ax.plot([spike_time, spike_time], [ii+0.95, ii+1.05], color='black')
 
     sim_time = max([neuron.sim_time for neuron in neuron_list])
     ax.set_xlim([0, sim_time])
