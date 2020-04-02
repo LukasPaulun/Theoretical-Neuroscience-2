@@ -610,8 +610,49 @@ def plot_spikes(neuron_list: Iterable,
 
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('Neuron')
+    ax.set_yticks(np.arange(sum(1 for _ in neuron_list)) + 1)
     if title == None:
         ax.set_title('Spike trains')
+    else:
+        ax.set_title(str(title))
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+
+def plot_firing_rates(neuron_list: Iterable,
+                      bin_width: Number = 1,
+                      title: str = None):
+    """
+    Plot firing rates for a given array of neurons
+
+    Parameter
+    ----------
+    neuron_list : Iterable
+        list or array of neurons to plot the firing rates from
+    bin_width : Number, optional
+        Bin-width of where to evaluate firing rates in [s]. Default is 1.
+    title : str, optional
+        Title for the plot. Default is None.
+    """
+    assert iter(neuron_list), 'neuron_list must be of type Iterable'
+
+    fig, ax = plt.subplots(1,1, figsize=(14,7))
+
+    for ii, neuron in enumerate(neuron_list):
+        spike_times = neuron.get_spike_times()
+
+        x = np.arange(0, neuron.sim_time, bin_width)
+        y = np.histogram(spike_times, bins=np.append(x, neuron.sim_time))[0]
+
+        ax.plot(x, y, label='Neuron ' + str(ii))
+
+    sim_time = max([neuron.sim_time for neuron in neuron_list])
+    ax.set_xlim([0, sim_time])
+
+    ax.set_xlabel('Time [s]')
+    ax.set_ylabel('Firing rate [Hz]')
+    plt.legend(loc='upper left')
+    if title == None:
+        ax.set_title('Firing rates')
     else:
         ax.set_title(str(title))
 
@@ -641,7 +682,7 @@ def plot_synaptic_weights(synapse_list: Iterable,
 
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('Synaptic weights')
-    plt.legend()
+    plt.legend(loc='upper left')
     if title == None:
         ax.set_title('Evolution of synaptic weights')
     else:
