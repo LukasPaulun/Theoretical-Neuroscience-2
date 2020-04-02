@@ -1,11 +1,11 @@
 import neurons
 
-sim_time = 15
+sim_time = 30
 dt = 0.0001
 
 # Parameters for input neurons
 rate_1 = 5
-rate_2 = 8
+rate_2 = 5
 
 # Synapse parameters
 init_weight = 1
@@ -24,7 +24,8 @@ input_1.generate_spikes(rate_1)
 input_2.generate_spikes(rate_2)
 
 # Create two STDP synapses with given parameters
-STDPSynapses = [neurons.STDPSynapse(sim_time, dt, 'exc', init_weight=init_weight, \
+STDPSynapses = [neurons.STDPSynapse(sim_time, dt, typ='exc', \
+                                    init_weight=init_weight, max_weight=max_weight, \
                                 A_P=A_P, tau_P=tau_P, A_D=A_D, tau_D=tau_D) for _ in range(2)]
 
 # Create LIF neuron and connect the two Poisson neurons via the STDP synapses
@@ -38,7 +39,7 @@ LIF.simulate()
 neurons.plot_spikes([input_1, input_2], title='Spike trains of input Poisson neurons')
 
 LIF.plot_V(title='Membrane trace of LIF neuron')
-neurons.plot_firing_rates([LIF], title='Firing rate of LIF neuron')
+neurons.plot_firing_rates([LIF], bin_width=0.5, title='Firing rate of LIF neuron')
 
 title = 'Evolution of synaptic weights\nRate of input neuron 1: ' + str(rate_1) + 'Hz\nRate of input neuron 2: ' + str(rate_2) + 'Hz'
 neurons.plot_synaptic_weights(STDPSynapses, title=title)
