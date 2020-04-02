@@ -1,7 +1,12 @@
 ## Theoretical-Neuroscience-2
 Repository for the course Theoretical Neuroscience 2 by Jochen Triesch.
 
-Contains the module neurons.py which can be used to
+Contains three modules:
+	- neurons.py
+	- synapses.py
+	- devices.py
+	
+Example of features:
   - create populations of neurons with regular or Poisson spike behavior
   - create current generators
   - create STDP synapses that show LTP and LTD behavior
