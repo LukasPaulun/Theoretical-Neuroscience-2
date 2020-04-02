@@ -2,7 +2,9 @@ from typing import Union, Iterable
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.widgets
+
+import synapses
+import devices
 
 Number = Union[float, int]
 NumberN = Union[float, int, None]
@@ -23,8 +25,6 @@ class Neuron:
         Time of simulation in [s]. The default is 0.
     dt : Number, optional
         Time resolution in []. The default is 0.
-    typ : str, optional
-        Excitatory \'exc\' or inhibitory \'inh\' neuron. The default is 'exc'.
 
     Attributes
     ----------
@@ -32,15 +32,12 @@ class Neuron:
         where sim_time is stored
     dt : Number
         where dt is stored
-    typ : str
-        where typ is stored
     N : int
         total number of time steps in the simulation
     time : np.ndarray
         array of all timesteps of the simulation, shape (N)
     spikes : np.ndarray
         array with number of spikes at each timestep, initialized to zero, shape (N)
-
     """
     def __init__(self,
                  sim_time: Number = 0,
@@ -372,7 +369,7 @@ class LIFNeuron(Neuron):
         current : CurrentGenerator, optional
             current generator to connect. Default is None.
         """
-        assert type(generator) == CurrentGenerator, 'Input must be a current generator'
+        assert type(generator) == devices.CurrentGenerator, 'Input must be a current generator'
         self.generator_input = np.append(self.generator_input, generator)
 
     def delete_connections(self):
@@ -389,8 +386,6 @@ class LIFNeuron(Neuron):
         """
         Runs the simulation and approximates the LIF equation with Euler\'s method.
         """
-
-
         for t in np.arange(self.N)[:-1]:
             # Check whether spike threshold was reached
             if self.V[t] >= self.V_thresh:
@@ -421,42 +416,42 @@ class LIFNeuron(Neuron):
                     if typ == 'inh':
                         self.g_i[t+1] += synapse.weight[t]*neuron.spikes[t]
 
-                # Perform STDP
-                if type(synapse) == STDPSynapse:
-                    # LTP: Postsynaptic neuron spikes, presynaptic neuron does not spike
-                    # but there were presynaptic spikes in the past
-                    if self.spikes[t] > 0 and neuron.spikes[t] == 0 and np.any(neuron.spikes[:t]):       # perform LTP
-                        last_pre_spike_index = np.where(neuron.spikes[:t] > 0)[0][-1]
-                        if np.any(self.spikes[:t]):
-                            last_post_spike_index = np.where(self.spikes[:t] > 0)[0][-1]
-                        else:
-                            last_post_spike_index = np.nan
+                # Update synaptic weights
+                synapse.update_weights(t, neuron, self)
+                    # # LTP: Postsynaptic neuron spikes, presynaptic neuron does not spike
+                    # # but there were presynaptic spikes in the past
+                    # if self.spikes[t] > 0 and neuron.spikes[t] == 0 and np.any(neuron.spikes[:t]):       # perform LTP
+                    #     last_pre_spike_index = np.where(neuron.spikes[:t] > 0)[0][-1]
+                    #     if np.any(self.spikes[:t]):
+                    #         last_post_spike_index = np.where(self.spikes[:t] > 0)[0][-1]
+                    #     else:
+                    #         last_post_spike_index = np.nan
 
-                        # Narrow nearest neighbour implementation of STDP
-                        # Compare Morrison, Diesmann, Gerstner (2008), figure 7c
-                        if np.isnan(last_post_spike_index) or last_pre_spike_index > last_post_spike_index:
-                            delta_t = (last_pre_spike_index - t) * self.dt
+                    #     # Narrow nearest neighbour implementation of STDP
+                    #     # Compare Morrison, Diesmann, Gerstner (2008), figure 7c
+                    #     if np.isnan(last_post_spike_index) or last_pre_spike_index > last_post_spike_index:
+                    #         delta_t = (last_pre_spike_index - t) * self.dt
 
-                            new_weight = synapse.weight[t] + synapse.A_P * np.exp(delta_t / synapse.tau_P)
-                            if new_weight <= synapse.max_weight:
-                                synapse.weight[t+1:] = new_weight
+                    #         new_weight = synapse.weight[t] + synapse.A_P * np.exp(delta_t / synapse.tau_P)
+                    #         if new_weight <= synapse.max_weight:
+                    #             synapse.weight[t+1:] = new_weight
 
-                    # LTD: Presynaptic neuron spikes, postsynaptic neuron does not spike
-                    # but there were postsynaptic spikes in the past
-                    elif self.spikes[t] == 0 and neuron.spikes[t] > 0 and np.any(self.spikes[:t]):     # perform LTD
-                        if np.any(neuron.spikes[:t]):
-                            last_pre_spike_index = np.where(neuron.spikes[:t] > 0)[0][-1]
-                        else:
-                            last_pre_spike_index = np.nan
-                        last_post_spike_index = np.where(self.spikes[:t] > 0)[0][-1]
+                    # # LTD: Presynaptic neuron spikes, postsynaptic neuron does not spike
+                    # # but there were postsynaptic spikes in the past
+                    # elif self.spikes[t] == 0 and neuron.spikes[t] > 0 and np.any(self.spikes[:t]):     # perform LTD
+                    #     if np.any(neuron.spikes[:t]):
+                    #         last_pre_spike_index = np.where(neuron.spikes[:t] > 0)[0][-1]
+                    #     else:
+                    #         last_pre_spike_index = np.nan
+                    #     last_post_spike_index = np.where(self.spikes[:t] > 0)[0][-1]
 
-                        # Narrow nearest neighbour implementation of STDP as above
-                        if np.isnan(last_pre_spike_index) or last_post_spike_index > last_pre_spike_index:
-                            delta_t = (t - last_post_spike_index) * self.dt
+                    #     # Narrow nearest neighbour implementation of STDP as above
+                    #     if np.isnan(last_pre_spike_index) or last_post_spike_index > last_pre_spike_index:
+                    #         delta_t = (t - last_post_spike_index) * self.dt
 
-                            new_weight = synapse.weight[t] + synapse.A_D * np.exp(-delta_t / synapse.tau_D)
-                            if new_weight <= synapse.max_weight:
-                                synapse.weight[t+1:] = new_weight
+                    #         new_weight = synapse.weight[t] + synapse.A_D * np.exp(-delta_t / synapse.tau_D)
+                    #         if new_weight <= synapse.max_weight:
+                    #             synapse.weight[t+1:] = new_weight
 
 
             # Compute conductance of SRA (spike rate adaptation)
@@ -515,94 +510,6 @@ class LIFNeuron(Neuron):
         plt.suptitle(title)
         plt.tight_layout(rect=[0, 0.03, 1, 0.97])
         plt.show()
-
-class CurrentGenerator:
-    def __init__(self,
-                 sim_time: Number = 0,
-                 dt: Number = 0):
-
-        assert dt > 0, 'dt must be greater than zero'
-        assert sim_time >= 0, 'sim_time must be greater than or equal to zero'
-
-        self.sim_time = sim_time
-        self.dt = dt
-
-        if sim_time == 0:
-            self.N = 0
-            self.time = np.array([])
-            self.current = np.array([])
-        else:
-            self.N = round(self.sim_time / self.dt)
-            self.time = np.arange(0, self.sim_time, self.dt)
-            self.current = np.zeros(self.N)
-
-
-    def generate_current(self,
-                        current: Number = 0,
-                        start: Number = 0,
-                        stop: Number = None):
-        """
-        Generate a current
-
-        Parameters
-        ----------
-        current : Number, optional
-            Current in [A]. The default is 0.
-        start : Number, optional
-            Start time of firing in [s]. The default is 0.
-        stop : Number, optional
-            Stop time of firing in [s]. The default is the end of the simulation.
-        """
-
-        if stop == None:
-            stop = self.sim_time
-        assert start >= 0, 'start has to be greater than or equal to zero'
-        assert stop <= self.sim_time, 'stop has to be smaller than or equal to sim_time'
-
-        start_index = round(start / self.dt)
-        stop_index = round(stop / self.dt)
-        self.current[start_index:stop_index] = current
-
-class STDPSynapse:
-
-    def __init__(self,
-                 sim_time: Number = 0,
-                 dt: Number = 0,
-
-                 typ: str = 'exc',
-                 init_weight: Number = 0.5,
-                 max_weight: Number = 6,
-
-                 A_P: Number = 0.05,
-                 tau_P: Number = 17e-3,
-
-                 A_D: Number = -0.025,
-                 tau_D: Number = 34e-3):
-
-        assert dt > 0, 'dt must be greater than zero'
-        assert sim_time >= 0, 'sim_time must be greater than or equal to zero'
-        assert typ=='exc' or typ=='inh', 'Connection-type must be \'exc\' or \'inh\''
-
-        self.sim_time = sim_time
-        self.dt = dt
-
-        if sim_time == 0:
-            self.N = 0
-            self.time = np.array([])
-            self.weight = np.array([])
-        else:
-            self.N = round(self.sim_time / self.dt)
-            self.time = np.arange(0, self.sim_time, self.dt)
-            self.weight = init_weight * np.ones(self.N)
-
-        self.typ = typ
-        self.max_weight = max_weight
-
-        self.A_P = A_P
-        self.tau_P = tau_P
-
-        self.A_D = A_D
-        self.tau_D = tau_D
 
 
 def plot_spikes(neuron_list: Iterable,
@@ -678,39 +585,6 @@ def plot_firing_rates(neuron_list: Iterable,
         ax.set_title(str(title))
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.97])
-
-def plot_synaptic_weights(synapse_list: Iterable,
-                 title: str = None):
-    """
-    Plot weights of synapses for a given array of synapses
-
-    Parameter
-    ----------
-    synapse_list : Iterable
-        list or array of synapses to plot the weights from
-    title : str, optional
-        Title for the plot. Default is None.
-    """
-    assert iter(synapse_list), 'neuron_list must be of type Iterable'
-
-    fig, ax = plt.subplots(1,1, figsize=(14,7))
-
-    for ii, synapse in enumerate(synapse_list):
-        ax.plot(synapse.time, synapse.weight, label = 'Synapse ' + str(ii+1))
-
-    sim_time = max([synapse.sim_time for synapse in synapse_list])
-    ax.set_xlim([0, sim_time])
-
-    ax.set_xlabel('Time [s]')
-    ax.set_ylabel('Synaptic weights')
-    plt.legend(loc='upper left')
-    if title == None:
-        ax.set_title('Evolution of synaptic weights')
-    else:
-        ax.set_title(str(title))
-
-    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
-
 
 
 
