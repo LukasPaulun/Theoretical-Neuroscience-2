@@ -44,12 +44,10 @@ class Neuron:
     """
     def __init__(self,
                  sim_time: Number = 0,
-                 dt: Number = 0,
-                 typ: str = 'exc'):
+                 dt: Number = 0):
 
         assert dt > 0, 'dt must be greater than zero'
         assert sim_time >= 0, 'sim_time must be greater than or equal to zero'
-        assert typ=='exc' or typ=='inh', 'Connection-type must be \'exc\' or \'inh\''
 
         self.sim_time = sim_time
         self.dt = dt
@@ -62,8 +60,6 @@ class Neuron:
             self.N = round(self.sim_time / self.dt)
             self.time = np.arange(0, self.sim_time, self.dt)
             self.spikes = np.zeros(self.N)
-
-        self.typ = typ
 
     def get_spike_times(self) -> np.ndarray:
         """
@@ -153,10 +149,9 @@ class RegularNeuron(Neuron):
     """
     def __init__(self,
                  sim_time: Number = 0,
-                 dt: Number = 0,
-                 typ: str = 'exc'):
+                 dt: Number = 0):
 
-        Neuron.__init__(self, sim_time, dt, typ)
+        Neuron.__init__(self, sim_time, dt)
 
     def generate_spikes(self,
                         rate: Number = 0,
@@ -203,10 +198,9 @@ class PoissonNeuron(Neuron):
     """
     def __init__(self,
                  sim_time: Number = 0,
-                 dt: Number = 0,
-                 typ: str = 'exc'):
+                 dt: Number = 0):
 
-        Neuron.__init__(self, sim_time, dt, typ)
+        Neuron.__init__(self, sim_time, dt)
 
     def generate_spikes(self,
                         rate: Number = 0,
@@ -292,7 +286,6 @@ class LIFNeuron(Neuron):
     def __init__(self,
                  sim_time: Number = 0,
                  dt: Number = 0,
-                 typ: str = 'exc',
 
                  V_init: Number = -60e-3,
                  tau_m: Number = 10e-3,
@@ -308,11 +301,9 @@ class LIFNeuron(Neuron):
 
                  E_e: Number = 0,
                  tau_e: Number = 3e-3,
-                 w_e: Number = 0.5,
 
                  E_i: Number = -80e-3,
-                 tau_i: Number = 5e-3,
-                 w_i: Number = 0.5):
+                 tau_i: Number = 5e-3):
 
         Neuron.__init__(self, sim_time, dt)
 
@@ -329,17 +320,18 @@ class LIFNeuron(Neuron):
         self.tau_SRA = tau_SRA
         self.w_SRA = w_SRA
 
-        self.exc_input = np.array([])
+        self.neuron_input = np.array([])
+        self.synapses = np.array([])
+
+       # self.exc_input = np.array([])
         self.g_e = np.zeros(self.N)
         self.E_e = E_e
         self.tau_e = tau_e
-        self.w_e = w_e
 
-        self.inh_input = np.array([])
+        #self.inh_input = np.array([])
         self.g_i = np.zeros(self.N)
         self.E_i = E_i
         self.tau_i = tau_i
-        self.w_i = w_i
 
         self.generator_input = np.array([])
 
@@ -353,21 +345,23 @@ class LIFNeuron(Neuron):
         self.delete_spikes()
 
     def connect_neurons(self,
-                neuron_list: np.ndarray = np.array([])):
+                neuron_list: Iterable = np.array([]),
+                synapse_list: Iterable = np.array([])):
         """
         Connects one or multiple input neurons to the LIF neuron.
 
         Parameters
         ----------
-        neuron_list : np.ndarray, optional
+        neuron_list : Iterable, optional
             Array of input neurons. The default is np.array([]).
+        synapse_list : Iterable, optional
+            Array of synapses. Must have the same shape as neuron_list
         """
+        assert sum(1 for _ in neuron_list) == sum(1 for _ in synapse_list), 'neuron_list and synapse_list must have the same shape'
 
-        for neuron in np.array(neuron_list):
-            if neuron.typ == 'exc':
-                self.exc_input = np.append(self.exc_input, neuron)
-            elif neuron.typ == 'inh':
-                    self.inh_input = np.append(self.inh_input, neuron)
+        for ii, neuron in enumerate(neuron_list):
+            self.neuron_input = np.append(self.neuron_input, neuron_list[ii])
+            self.synapses = np.append(self.synapses, synapse_list[ii])
 
     def connect_generator(self, generator = None):
         """
@@ -385,52 +379,70 @@ class LIFNeuron(Neuron):
         """
         Deletes all existing input neurons and generators
         """
-        self.exc_input = np.array([])
-        self.inh_input= np.array([])
+        self.neuron_input = np.array([])
+        self.synapses = np.array([])
+        #self.exc_input = np.array([])
+        #self.inh_input= np.array([])
         self.generator_input = np.array([])
 
     def simulate(self):
         """
         Runs the simulation and approximates the LIF equation with Euler\'s method.
         """
-        for ii in np.arange(self.N)[:-1]:
+        for t in np.arange(self.N)[:-1]:
             # Check whether spike threshold was reached
-            if self.V[ii] >= self.V_thresh:
-                self.V[ii] = self.V_spike
-                self.spikes[ii] += 1
-                self.V[ii+1] = self.V_reset
+            if self.V[t] >= self.V_thresh:
+                self.V[t] = self.V_spike
+                self.spikes[t] += 1
+                self.V[t+1] = self.V_reset
             else:
-                self.V[ii+1] = self.V[ii]
-                self.V[ii+1] += self.dt * 1/self.tau_m * (self.E_l-self.V[ii])  # decay to resting potential
-                self.V[ii+1] += self.dt * 1/self.tau_m * self.g_e[ii]*(self.E_e-self.V[ii]) # exc synaptic input
-                self.V[ii+1] += self.dt * 1/self.tau_m * self.g_i[ii]*(self.E_i-self.V[ii]) # inh synaptic input
-                self.V[ii+1] += self.dt * 1/self.tau_m * self.R_m*sum([gen.current[ii] for gen in self.generator_input]) # external current input
-                self.V[ii+1] += self.dt * 1/self.tau_m * self.g_SRA[ii]*(self.E_k-self.V[ii]) # SRA (spike rate adaptation)
-                    # self.dt * 1/self.tau_m * \
-                    # (self.E_l-self.V[ii] + \
-                    #   self.g_e[ii]*(self.E_e-self.V[ii]) + \
-                    #   self.g_i[ii]*(self.E_i-self.V[ii]) + \
-                    #   self.R_m*sum([gen.current[ii] for gen in self.generator_input]) + \
-                    #   self.g_SRA*(self.E_k-self.V[ii])
-                    #   )
+                self.V[t+1] = self.V[t]
+                self.V[t+1] += self.dt * 1/self.tau_m * (self.E_l-self.V[t])  # decay to resting potential
+                self.V[t+1] += self.dt * 1/self.tau_m * self.g_e[t]*(self.E_e-self.V[t]) # exc synaptic input
+                self.V[t+1] += self.dt * 1/self.tau_m * self.g_i[t]*(self.E_i-self.V[t]) # inh synaptic input
+                self.V[t+1] += self.dt * 1/self.tau_m * self.R_m*sum([gen.current[t] for gen in self.generator_input]) # external current input
+                self.V[t+1] += self.dt * 1/self.tau_m * self.g_SRA[t]*(self.E_k-self.V[t]) # SRA (spike rate adaptation)
 
-            # Compute synaptic conductance only if input is present
-            if self.exc_input.size > 0:
-                exc_input_spikes = sum([exc_input_neuron.spikes[ii] for exc_input_neuron in self.exc_input])
-                self.g_e[ii+1] = self.g_e[ii] + \
-                    self.dt * (-self.g_e[ii]/self.tau_e) + \
-                    self.w_e*exc_input_spikes
-            if self.inh_input.size > 0:
-                inh_input_spikes = sum([inh_input_neuron.spikes[ii] for inh_input_neuron in self.inh_input])
-                self.g_i[ii+1] = self.g_i[ii] + \
-                    self.dt * ( -self.g_i[ii]/self.tau_i) + \
-                    self.w_i*inh_input_spikes
+            # Exponential decay of conductances
+            self.g_e[t+1] = self.g_e[t] + self.dt * (-self.g_e[t]/self.tau_e)
+            self.g_i[t+1] = self.g_i[t] + self.dt * ( -self.g_i[t]/self.tau_i)
+
+            # Go through every input neuron and check whether there is a presynaptic spike
+            for jj, neuron in enumerate(self.neuron_input):
+                synapse = self.synapses[jj]
+                typ = synapse.typ
+
+                # Update conductances stepwise for each input spike
+                if neuron.spikes[t] > 0:
+                    if typ == 'exc':
+                        self.g_e[t+1] += synapse.weight[t]*neuron.spikes[t]
+                    if typ == 'inh':
+                        self.g_i[t+1] += synapse.weight[t]*neuron.spikes[t]
+
+                # Perform STDP
+                if type(synapse) == STDPSynapse:
+                    if self.spikes[t] > 0 and neuron.spikes[t] == 0 and np.any(neuron.spikes[:t]):       # perform LTP
+                        last_pre_spike_index = np.where(neuron.spikes[:t] > 0)[0][-1]
+                        delta_t = (last_pre_spike_index - t) * self.dt
+
+                        new_weight = synapse.weight[t] + synapse.A_P * np.exp(delta_t / synapse.tau_P)
+                        if new_weight <= synapse.max_weight:
+                            synapse.weight[t+1:] = new_weight
+
+                    elif self.spikes[t] == 0 and neuron.spikes[t] > 0 and np.any(self.spikes[:t]):     # perform LTD
+                        last_post_spike_index = np.where(self.spikes[:t] > 0)[0][-1]
+                        delta_t = (t - last_post_spike_index) * self.dt
+
+                        new_weight = synapse.weight[t] + synapse.A_D * np.exp(-delta_t / synapse.tau_D)
+                        if new_weight <= synapse.max_weight:
+                            synapse.weight[t+1:] = new_weight
+
 
             # Compute conductance of SRA (spike rate adaptation)
             if self.w_SRA > 0:
-                self.g_SRA[ii+1] = self.g_SRA[ii] + \
-                    self.dt * (-self.g_SRA[ii]/self.tau_SRA) + \
-                    self.w_SRA*self.spikes[ii]
+                self.g_SRA[t+1] = self.g_SRA[t] + \
+                    self.dt * (-self.g_SRA[t]/self.tau_SRA) + \
+                    self.w_SRA*self.spikes[t]
 
     def plot_V(self, title: str = None):
         """
@@ -530,6 +542,47 @@ class CurrentGenerator:
         stop_index = round(stop / self.dt)
         self.current[start_index:stop_index] = current
 
+class STDPSynapse:
+
+    def __init__(self,
+                 sim_time: Number = 0,
+                 dt: Number = 0,
+
+                 typ: str = 'exc',
+                 init_weight: Number = 0.5,
+                 max_weight: Number = 6,
+
+                 A_P: Number = 0.05,
+                 tau_P: Number = 17e-3,
+
+                 A_D: Number = -0.025,
+                 tau_D: Number = 34e-3):
+
+        assert dt > 0, 'dt must be greater than zero'
+        assert sim_time >= 0, 'sim_time must be greater than or equal to zero'
+        assert typ=='exc' or typ=='inh', 'Connection-type must be \'exc\' or \'inh\''
+
+        self.sim_time = sim_time
+        self.dt = dt
+
+        if sim_time == 0:
+            self.N = 0
+            self.time = np.array([])
+            self.weight = np.array([])
+        else:
+            self.N = round(self.sim_time / self.dt)
+            self.time = np.arange(0, self.sim_time, self.dt)
+            self.weight = init_weight * np.ones(self.N)
+
+        self.typ = typ
+        self.max_weight = max_weight
+
+        self.A_P = A_P
+        self.tau_P = tau_P
+
+        self.A_D = A_D
+        self.tau_D = tau_D
+
 
 def plot_spikes(neuron_list: Iterable,
                 title: str = None):
@@ -544,7 +597,7 @@ def plot_spikes(neuron_list: Iterable,
         Title for the plot. Default is None.
     """
 
-    assert iter(neuron_list), 'neuron_list must be of type np.ndarray'
+    assert iter(neuron_list), 'neuron_list must be of type Iterable'
 
     fig, ax = plt.subplots(1,1, figsize=(14,7))
 
@@ -564,7 +617,37 @@ def plot_spikes(neuron_list: Iterable,
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.97])
 
+def plot_synaptic_weights(synapse_list: Iterable,
+                 title: str = None):
+    """
+    Plot weights of synapses for a given array of synapses
 
+    Parameter
+    ----------
+    synapse_list : Iterable
+        list or array of synapses to plot the weights from
+    title : str, optional
+        Title for the plot. Default is None.
+    """
+    assert iter(synapse_list), 'neuron_list must be of type Iterable'
+
+    fig, ax = plt.subplots(1,1, figsize=(14,7))
+
+    for ii, synapse in enumerate(synapse_list):
+        ax.plot(synapse.time, synapse.weight, label = 'Synapse ' + str(ii+1))
+
+    sim_time = max([synapse.sim_time for synapse in synapse_list])
+    ax.set_xlim([0, sim_time])
+
+    ax.set_xlabel('Time [s]')
+    ax.set_ylabel('Synaptic weights')
+    plt.legend()
+    if title == None:
+        ax.set_title('Evolution of synaptic weights')
+    else:
+        ax.set_title(str(title))
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
 
 
 
