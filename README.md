@@ -4,7 +4,8 @@ Repository for the course Theoretical Neuroscience 2 by Jochen Triesch.
 Contains the module neurons.py which can be used to
   - create populations of neurons with regular or Poisson spike behavior
   - create current generators
-  - connect such neurons or current generators to LIF neurons
+  - create STDP synapses that show LTP and LTD behavior
+  - connect such neurons or current generators to LIF neurons and use different synapses for the connection
   - simulate the membrance trace of the LIF neuron
   - extract statistics, e.g. about the ISIs
   - create various plots, e.g. spike trains, membrane potential traces, ISI histograms
