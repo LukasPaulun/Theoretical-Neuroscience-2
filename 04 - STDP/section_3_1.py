@@ -5,7 +5,7 @@ dt = 0.0001
 
 # Parameters for input neurons
 rate_1 = 5
-rate_2 = 5
+rate_2 = 8
 
 # Synapse parameters
 init_weight = 1
@@ -29,7 +29,7 @@ STDPSynapses = [neurons.STDPSynapse(sim_time, dt, typ='exc', \
                                 A_P=A_P, tau_P=tau_P, A_D=A_D, tau_D=tau_D) for _ in range(2)]
 
 # Create LIF neuron and connect the two Poisson neurons via the STDP synapses
-LIF = neurons.LIFNeuron(sim_time, dt, w_SRA=0)
+LIF = neurons.LIFNeuron(sim_time, dt, w_SRA=0, V_thresh=-50e-3)
 LIF.connect_neurons([input_1, input_2], STDPSynapses)
 
 # Run simulations

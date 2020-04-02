@@ -389,6 +389,8 @@ class LIFNeuron(Neuron):
         """
         Runs the simulation and approximates the LIF equation with Euler\'s method.
         """
+
+
         for t in np.arange(self.N)[:-1]:
             # Check whether spike threshold was reached
             if self.V[t] >= self.V_thresh:
@@ -421,21 +423,40 @@ class LIFNeuron(Neuron):
 
                 # Perform STDP
                 if type(synapse) == STDPSynapse:
+                    # LTP: Postsynaptic neuron spikes, presynaptic neuron does not spike
+                    # but there were presynaptic spikes in the past
                     if self.spikes[t] > 0 and neuron.spikes[t] == 0 and np.any(neuron.spikes[:t]):       # perform LTP
                         last_pre_spike_index = np.where(neuron.spikes[:t] > 0)[0][-1]
-                        delta_t = (last_pre_spike_index - t) * self.dt
+                        if np.any(self.spikes[:t]):
+                            last_post_spike_index = np.where(self.spikes[:t] > 0)[0][-1]
+                        else:
+                            last_post_spike_index = np.nan
 
-                        new_weight = synapse.weight[t] + synapse.A_P * np.exp(delta_t / synapse.tau_P)
-                        if new_weight <= synapse.max_weight:
-                            synapse.weight[t+1:] = new_weight
+                        # Narrow nearest neighbour implementation of STDP
+                        # Compare Morrison, Diesmann, Gerstner (2008), figure 7c
+                        if np.isnan(last_post_spike_index) or last_pre_spike_index > last_post_spike_index:
+                            delta_t = (last_pre_spike_index - t) * self.dt
 
+                            new_weight = synapse.weight[t] + synapse.A_P * np.exp(delta_t / synapse.tau_P)
+                            if new_weight <= synapse.max_weight:
+                                synapse.weight[t+1:] = new_weight
+
+                    # LTD: Presynaptic neuron spikes, postsynaptic neuron does not spike
+                    # but there were postsynaptic spikes in the past
                     elif self.spikes[t] == 0 and neuron.spikes[t] > 0 and np.any(self.spikes[:t]):     # perform LTD
+                        if np.any(neuron.spikes[:t]):
+                            last_pre_spike_index = np.where(neuron.spikes[:t] > 0)[0][-1]
+                        else:
+                            last_pre_spike_index = np.nan
                         last_post_spike_index = np.where(self.spikes[:t] > 0)[0][-1]
-                        delta_t = (t - last_post_spike_index) * self.dt
 
-                        new_weight = synapse.weight[t] + synapse.A_D * np.exp(-delta_t / synapse.tau_D)
-                        if new_weight <= synapse.max_weight:
-                            synapse.weight[t+1:] = new_weight
+                        # Narrow nearest neighbour implementation of STDP as above
+                        if np.isnan(last_pre_spike_index) or last_post_spike_index > last_pre_spike_index:
+                            delta_t = (t - last_post_spike_index) * self.dt
+
+                            new_weight = synapse.weight[t] + synapse.A_D * np.exp(-delta_t / synapse.tau_D)
+                            if new_weight <= synapse.max_weight:
+                                synapse.weight[t+1:] = new_weight
 
 
             # Compute conductance of SRA (spike rate adaptation)
