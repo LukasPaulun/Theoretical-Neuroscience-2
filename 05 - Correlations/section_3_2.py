@@ -1,51 +1,41 @@
-from typing import Union, Iterable
 import numpy as np
 import matplotlib
-import matplotlib.pyplot as plt
-import scipy.signal
 
 import neurons
-import synapses
 
-Number = Union[float, int]
-NumberN = Union[float, int, None]
-NumberC = Union[float, int, complex]
-
-font = {'family' : 'sans',
-        'weight' : 'normal',
-        'size'   : 22}
-matplotlib.rc('font', **font)
-
-
-sim_time = 10
+sim_time = 15
 dt = 0.0001
 
+# Parameters for population of correlated neurons
 N_pop = 10
 target_rate = 10
 
-c_list = np.array([0.1])
+c = np.array([0.2, 1])
+p = np.sqrt(c)
+noise_rate = (1-p) * target_rate
 
-source = neurons.PoissonNeuron(sim_time, dt)
-source.generate_spikes(target_rate)
+# Create populations of Poisson neurons
+population = [np.array([neurons.PoissonNeuron(sim_time, dt) for _ in range(N_pop)])
+                for _ in range(c.size)]
 
-for c in c_list:
-    p = np.sqrt(c)
-    noise_rate = (1-p) * target_rate
+for ii in range(c.size):
+    # Create source neuron
+    source = neurons.PoissonNeuron(sim_time, dt)
+    source.generate_spikes(target_rate)
 
-    population = np.array([neurons.PoissonNeuron(sim_time, dt) for _ in range(N_pop)])
-    for neuron in population:
-        neuron.copy_spikes(source, p, mode='instantaneous')
+    # Generate independent spikes with noise_rate and copy spikes from source with probability p
+    for neuron in population[ii]:
+        neuron.generate_spikes(noise_rate[ii])
+        neuron.copy_spikes(source, p[ii], mode='instantaneous')
 
-    neurons.plot_spikes(population, title='Spike train of population with c = ' + str(c))
+    # Plot spike trains and correlograms
+    neurons.plot_spikes(population[ii], title='Spike trains of population with c = ' + str(c[ii]))
 
+    neurons.plot_cross_correlogram(population[ii][0], population[ii][1], max_lag=100e-3, bin_width=5e-3, \
+                                   title='Cross-correlogram of first two neurons from population with c = ' + str(c[ii]))
 
-neurons.plot_cross_correlogram(population[0], population[1], max_lag=200e-3, bin_width=10e-3)
-
-
-
-
-
-
-
+# Plot correlogram of two neurons from different populations
+neurons.plot_cross_correlogram(population[0][0], population[1][0], max_lag=100e-3, bin_width=5e-3, \
+    title='Cross correlogram for two neurons from different populations')
 
 

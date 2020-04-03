@@ -603,21 +603,42 @@ def plot_cross_correlogram(neuron_1,
                            max_lag: Number = 100e-3,
                            bin_width: Number = 5e-3,
                            title: str = None):
+    """
+    Plot a cross-correlogram of two given neurons
+
+    Parameters
+    ----------
+    neuron_1 : Neuron
+        First neuron.
+    neuron_2 : Neuron
+        Second neuron.
+    max_lag : Number, optional
+        The plot will go from -max_lag to +max_lag. The default is 100e-3.
+    bin_width : Number, optional
+        Width of bins to add the correlations in. The default is 5e-3.
+    title : str, optional
+        Title of figure. The default is None.
+    """
+    assert type(neuron_1).__base__ = Neuron, 'neuron_1 is not a neuron'
+    assert type(neuron_2).__base__ = Neuron, 'neuron_2 is not a neuron'
 
     fig, ax = plt.subplots(1,1, figsize=(14,7))
 
+    # Since np.correlate(..., mode='full') will compute the cross-correlations for lags with distance dt
+    # compute the start and stop index of the cross-correlations that are actually needed for the plot
     start_index = int(neuron_1.N - 1 - max_lag/neuron_1.dt)
     stop_index = int(neuron_1.N - 1 + max_lag/neuron_1.dt)
 
+    # Get the cross correlations from -max_lag to +max_lag
     cor = np.correlate(neuron_1.spikes, neuron_2.spikes, 'full')[start_index:stop_index]
 
-    lags = np.arange(-max_lag, max_lag, bin_width)
-    cor_hist = np.array([])
+    lags = 1000 * np.arange(-max_lag, max_lag, bin_width)
 
+    # Sum up all cross-correlations in bins with width bin_width
+    cor_hist = np.array([])
     bin_width_ii = int(bin_width / neuron_1.dt)
     for ii in np.arange(0, cor.size, bin_width_ii):
         cor_hist = np.append(cor_hist, np.sum(cor[ii : ii+bin_width_ii]))
-
 
     ax.plot(lags, cor_hist)
 
