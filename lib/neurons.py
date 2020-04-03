@@ -629,8 +629,3 @@ def plot_cross_correlogram(neuron_1,
         ax.set_title(str(title))
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.97])
-
-
-
-
-
