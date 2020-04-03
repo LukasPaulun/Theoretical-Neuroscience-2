@@ -61,14 +61,79 @@ class Neuron:
     def copy_spikes(self,
                     source,
                     p: Number = 0,
-                    mode: str = 'instantaneous'):
+                    mode: str = 'inst',
+                    tau_c: Number = 20e-3):
+        """
+        Copies spikes from a source neuron with probability p into the neuron.
+        Can be used to generate correlated populations of neurons
+
+        Parameters
+        ----------
+        source : Neuron
+            Source neuron where the spikes are copied from.
+        p : Number, optional
+            Copy probability. The default is 0.
+        mode : str, optional
+            Copy mode. The default is 'inst'.
+                'inst': Instantaneous copying to the same time step in the target neuron.
+                'exp': Copying with exponential jitter
+        tau_c : Number, optional
+            Optional parameter for mode='exp' Determines the width of the exponential jitter. The default is 20e-3.
+
+        """
         assert type(source).__base__ == Neuron, 'Source is not a neuron'
-        assert mode in ['instantaneous', 'exponential']
+        assert mode in ['inst', 'exp']
 
         for spike_index in np.argwhere(source.spikes > 0):
             for spike in range(int(source.spikes[spike_index[0]])):
                 if np.random.rand() < p:
-                    self.spikes[spike_index[0]] += 1
+                    if mode == 'inst':
+                        # Copy spike to the same time
+                        target_index = spike_index[0]
+                    elif mode == 'exp':
+                        # Draw a shift from an exponential distribution with parameter tau_c
+                        shift = np.random.exponential(tau_c)
+                        if np.random.rand() < 0.5:      # randomly shift forward or backward
+                            shift = -shift
+
+                        target_index = spike_index[0] + int(shift / source.dt)
+                        if target_index < 0:
+                            target_index = 0
+                        elif target_index >= source.N:
+                            target_index = source.N-1
+
+                    self.spikes[target_index] += 1
+
+
+
+    def bin_spikes(self,
+                   bin_width: Number = 5e-3) -> Iterable[np.ndarray]:
+        """
+        Bin the spikes of the neuron into bins of width bin_width.
+
+        Parameters
+        ----------
+        bin_width : Number, optional
+            Width of bins in [s]. The default is 5e-3.
+
+        Returns
+        -------
+        binned_time : np.ndarray
+            Array of binned times.
+        binned_spikes : TYPE
+            Array of spike number per time bin.
+        """
+        binned_time = np.arange(0, self.sim_time, bin_width)
+        binned_spikes = np.array([])
+
+        bin_width_ii = int(bin_width / self.dt)
+
+        for ii in range(0, self.N, bin_width_ii):
+            binned_spikes = np.append(binned_spikes, \
+                                        np.sum(self.spikes[ii : ii+bin_width_ii]))
+
+        return binned_time, binned_spikes
+
 
     def get_spike_times(self) -> np.ndarray:
         """
@@ -598,11 +663,13 @@ def plot_firing_rates(neuron_list: Iterable,
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.97])
 
-def plot_cross_correlogram(neuron_1,
-                           neuron_2,
-                           max_lag: Number = 100e-3,
-                           bin_width: Number = 5e-3,
-                           title: str = None):
+
+def cross_correlogram(neuron_1,
+                      neuron_2,
+                      max_lag: Number = 100e-3,
+                      bin_width: Number = 5e-3,
+                      plot: bool = True,
+                      title: str = None) -> Iterable[np.ndarray]:
     """
     Plot a cross-correlogram of two given neurons
 
@@ -616,37 +683,51 @@ def plot_cross_correlogram(neuron_1,
         The plot will go from -max_lag to +max_lag. The default is 100e-3.
     bin_width : Number, optional
         Width of bins to add the correlations in. The default is 5e-3.
+    plot : bool, optional
+        Whether the correlogram should be plotted. Default is True.
     title : str, optional
         Title of figure. The default is None.
-    """
-    assert type(neuron_1).__base__ = Neuron, 'neuron_1 is not a neuron'
-    assert type(neuron_2).__base__ = Neuron, 'neuron_2 is not a neuron'
 
-    fig, ax = plt.subplots(1,1, figsize=(14,7))
+    Return
+    -------
+    lags : np.ndarray
+        Array with the lag times from -max_lag to +mag_lax.
+    cor : np.ndarray
+        Array with the cross-correlations matching the shape of lags.
+    """
+    assert type(neuron_1).__base__ == Neuron, 'neuron_1 is not a neuron'
+    assert type(neuron_2).__base__ == Neuron, 'neuron_2 is not a neuron'
+
+    lags = np.arange(-max_lag, max_lag, bin_width)
+
+    _, binned_spikes_1 = neuron_1.bin_spikes(bin_width)
+    _, binned_spikes_2 = neuron_2.bin_spikes(bin_width)
 
     # Since np.correlate(..., mode='full') will compute the cross-correlations for lags with distance dt
     # compute the start and stop index of the cross-correlations that are actually needed for the plot
-    start_index = int(neuron_1.N - 1 - max_lag/neuron_1.dt)
-    stop_index = int(neuron_1.N - 1 + max_lag/neuron_1.dt)
+    central_index = int(round(neuron_1.sim_time/bin_width)) - 1
+    start_index = int(central_index - max_lag/bin_width)
+    stop_index = int(central_index + max_lag/bin_width)
 
     # Get the cross correlations from -max_lag to +max_lag
-    cor = np.correlate(neuron_1.spikes, neuron_2.spikes, 'full')[start_index:stop_index]
+    cor = np.correlate(binned_spikes_1, binned_spikes_2, 'full')
 
-    lags = 1000 * np.arange(-max_lag, max_lag, bin_width)
+    # Compute the actual rates of the two neurons and normalize the cross-correlation
+    est_rate_1 = np.sum(neuron_1.spikes) / neuron_1.sim_time
+    est_rate_2 = np.sum(neuron_2.spikes) / neuron_2.sim_time
+    cor = cor / (est_rate_1 * est_rate_2)
 
-    # Sum up all cross-correlations in bins with width bin_width
-    cor_hist = np.array([])
-    bin_width_ii = int(bin_width / neuron_1.dt)
-    for ii in np.arange(0, cor.size, bin_width_ii):
-        cor_hist = np.append(cor_hist, np.sum(cor[ii : ii+bin_width_ii]))
+    if plot:
+        fig, ax = plt.subplots(1,1, figsize=(14,7))
+        ax.plot(1000*lags, cor[start_index:stop_index])
 
-    ax.plot(lags, cor_hist)
+        ax.set_xlabel('Cross-correlation lag [ms]')
+        ax.set_ylabel('Correlation []')
+        if title == None:
+            ax.set_title('Cross-correlogram')
+        else:
+            ax.set_title(str(title))
 
-    ax.set_xlabel('Cross-correlation lag [ms]')
-    ax.set_ylabel('Correlation []')
-    if title == None:
-        ax.set_title('Cross-correlogram')
-    else:
-        ax.set_title(str(title))
+        plt.tight_layout(rect=[0, 0.03, 1, 0.97])
 
-    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+    return lags, cor[start_index:stop_index]
