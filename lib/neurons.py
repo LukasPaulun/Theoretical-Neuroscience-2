@@ -397,12 +397,10 @@ class LIFNeuron(Neuron):
         self.neuron_input = np.array([])
         self.synapses = np.array([])
 
-       # self.exc_input = np.array([])
         self.g_e = np.zeros(self.N)
         self.E_e = E_e
         self.tau_e = tau_e
 
-        #self.inh_input = np.array([])
         self.g_i = np.zeros(self.N)
         self.E_i = E_i
         self.tau_i = tau_i
@@ -434,7 +432,7 @@ class LIFNeuron(Neuron):
         assert sum(1 for _ in neuron_list) == sum(1 for _ in synapse_list), 'neuron_list and synapse_list must have the same shape'
 
         for ii, neuron in enumerate(neuron_list):
-            self.neuron_input = np.append(self.neuron_input, neuron_list[ii])
+            self.neuron_input = np.append(self.neuron_input, neuron)
             self.synapses = np.append(self.synapses, synapse_list[ii])
 
     def connect_generator(self, generator = None):
@@ -495,41 +493,6 @@ class LIFNeuron(Neuron):
 
                 # Update synaptic weights
                 synapse.update_weights(t, neuron, self)
-                    # # LTP: Postsynaptic neuron spikes, presynaptic neuron does not spike
-                    # # but there were presynaptic spikes in the past
-                    # if self.spikes[t] > 0 and neuron.spikes[t] == 0 and np.any(neuron.spikes[:t]):       # perform LTP
-                    #     last_pre_spike_index = np.where(neuron.spikes[:t] > 0)[0][-1]
-                    #     if np.any(self.spikes[:t]):
-                    #         last_post_spike_index = np.where(self.spikes[:t] > 0)[0][-1]
-                    #     else:
-                    #         last_post_spike_index = np.nan
-
-                    #     # Narrow nearest neighbour implementation of STDP
-                    #     # Compare Morrison, Diesmann, Gerstner (2008), figure 7c
-                    #     if np.isnan(last_post_spike_index) or last_pre_spike_index > last_post_spike_index:
-                    #         delta_t = (last_pre_spike_index - t) * self.dt
-
-                    #         new_weight = synapse.weight[t] + synapse.A_P * np.exp(delta_t / synapse.tau_P)
-                    #         if new_weight <= synapse.max_weight:
-                    #             synapse.weight[t+1:] = new_weight
-
-                    # # LTD: Presynaptic neuron spikes, postsynaptic neuron does not spike
-                    # # but there were postsynaptic spikes in the past
-                    # elif self.spikes[t] == 0 and neuron.spikes[t] > 0 and np.any(self.spikes[:t]):     # perform LTD
-                    #     if np.any(neuron.spikes[:t]):
-                    #         last_pre_spike_index = np.where(neuron.spikes[:t] > 0)[0][-1]
-                    #     else:
-                    #         last_pre_spike_index = np.nan
-                    #     last_post_spike_index = np.where(self.spikes[:t] > 0)[0][-1]
-
-                    #     # Narrow nearest neighbour implementation of STDP as above
-                    #     if np.isnan(last_pre_spike_index) or last_post_spike_index > last_pre_spike_index:
-                    #         delta_t = (t - last_post_spike_index) * self.dt
-
-                    #         new_weight = synapse.weight[t] + synapse.A_D * np.exp(-delta_t / synapse.tau_D)
-                    #         if new_weight <= synapse.max_weight:
-                    #             synapse.weight[t+1:] = new_weight
-
 
             # Compute conductance of SRA (spike rate adaptation)
             if self.w_SRA > 0:
@@ -537,7 +500,10 @@ class LIFNeuron(Neuron):
                     self.dt * (-self.g_SRA[t]/self.tau_SRA) + \
                     self.w_SRA*self.spikes[t]
 
-    def plot_V(self, title: str = None):
+    def plot_V(self,
+               start: Number = 0,
+               stop: Number = None,
+               title: str = None):
         """
         Plots the membrane potential trace.
 
@@ -546,16 +512,31 @@ class LIFNeuron(Neuron):
         title : str, optional
             Title for the plot. The default is None.
         """
+        if stop == None:
+            stop = self.sim_time
+
+        assert start >= 0, 'start must be >= 0'
+        assert start < self.sim_time, 'start must be < sim_time'
+        assert stop > 0, 'stop must be > 0'
+        assert stop <= self.sim_time, 'stop must be <= sim_time'
+        assert start < stop, 'start must be < stop'
+
+        start_idx = int(start / self.dt)
+        stop_idx = int(stop / self.dt)-1
+
         fig, ax = plt.subplots(1, 1, figsize=(14,7))
 
         # plot everything in mV
-        ax.plot(self.time, 1000*self.V, color='blue', label=r'Membrane potential $V_m$')
-        ax.hlines(1000*self.V_thresh, 0, self.time[-1], linestyle='dashed', color='black', label=r'Threshold $V_\theta$')
+        ax.plot(self.time[start_idx:stop_idx], 1000*self.V[start_idx:stop_idx], color='blue', label=r'Membrane potential $V_m$')
+        ax.hlines(1000*self.V_thresh, self.time[start_idx], self.time[stop_idx], linestyle='dashed', color='black', label=r'Threshold $V_\theta$')
 
         ax.set_xlabel('Time [s]')
         ax.set_ylabel(r'Membrane potential $V_m$ [mV]')
         ax.legend(loc='upper right')
-        ax.set_title(title)
+        if title == None:
+            ax.set_title('Membrane trace of LIF neuron')
+        else:
+            ax.set_title(title)
 
         plt.show()
 
@@ -646,7 +627,7 @@ def plot_firing_rates(neuron_list: Iterable,
         spike_times = neuron.get_spike_times()
 
         x = np.arange(0, neuron.sim_time, bin_width)
-        y = np.histogram(spike_times, bins=np.append(x, neuron.sim_time))[0]
+        y = np.histogram(spike_times, bins=np.append(x, neuron.sim_time))[0] / bin_width
 
         ax.plot(x, y, label='Neuron ' + str(ii+1))
 
@@ -671,7 +652,7 @@ def cross_correlogram(neuron_1,
                       plot: bool = True,
                       title: str = None) -> Iterable[np.ndarray]:
     """
-    Plot a cross-correlogram of two given neurons
+    Compute (and plot) a cross-correlogram of two given neurons
 
     Parameters
     ----------
@@ -680,9 +661,9 @@ def cross_correlogram(neuron_1,
     neuron_2 : Neuron
         Second neuron.
     max_lag : Number, optional
-        The plot will go from -max_lag to +max_lag. The default is 100e-3.
+        The plot will go from -max_lag to +max_lag in [s]. The default is 100e-3.
     bin_width : Number, optional
-        Width of bins to add the correlations in. The default is 5e-3.
+        Width of bins in [s]. The default is 5e-3.
     plot : bool, optional
         Whether the correlogram should be plotted. Default is True.
     title : str, optional
@@ -691,9 +672,10 @@ def cross_correlogram(neuron_1,
     Return
     -------
     lags : np.ndarray
-        Array with the lag times from -max_lag to +mag_lax.
+        Array with the lag times from -max_lag to +mag_lax in [s]
     cor : np.ndarray
-        Array with the cross-correlations matching the shape of lags.
+        Array with cross-correlations at lags in lags.
+        To plot the result, simply call plt.plot(lags, cor)
     """
     assert type(neuron_1).__base__ == Neuron, 'neuron_1 is not a neuron'
     assert type(neuron_2).__base__ == Neuron, 'neuron_2 is not a neuron'

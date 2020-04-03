@@ -178,7 +178,9 @@ class STDPSynapse(Synapse):
 
 
 def plot_synaptic_weights(synapse_list: Iterable,
-                 title: str = None):
+                 title: str = None,
+                 color_list = [],
+                 labels = []):
     """
     Plot weights of synapses for a given array of synapses
 
@@ -194,14 +196,18 @@ def plot_synaptic_weights(synapse_list: Iterable,
     fig, ax = plt.subplots(1,1, figsize=(14,7))
 
     for ii, synapse in enumerate(synapse_list):
-        ax.plot(synapse.time, synapse.weight, label = 'Synapse ' + str(ii+1))
+        if len(color_list) > 0:
+            ax.plot(synapse.time, synapse.weight, color=color_list[ii])
+        else:
+            ax.plot(synapse.time, synapse.weight)
 
     sim_time = max([synapse.sim_time for synapse in synapse_list])
     ax.set_xlim([0, sim_time])
 
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('Synaptic weights')
-    plt.legend(loc='upper left')
+    if len(labels) > 0:
+        plt.legend(loc='upper left')
     if title == None:
         ax.set_title('Evolution of synaptic weights')
     else:
