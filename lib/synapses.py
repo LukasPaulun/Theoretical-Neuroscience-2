@@ -122,8 +122,8 @@ class STDPSynapse(Synapse):
 
     def update_weights(self,
                        t : Number,
-                       pre_neuron: neurons.Neuron,
-                       post_neuron: neurons.Neuron
+                       pre_neuron,
+                       post_neuron
                        ):
         """
         Update the weights according to the STDP rule.

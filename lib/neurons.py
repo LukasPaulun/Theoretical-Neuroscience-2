@@ -58,6 +58,18 @@ class Neuron:
             self.time = np.arange(0, self.sim_time, self.dt)
             self.spikes = np.zeros(self.N)
 
+    def copy_spikes(self,
+                    source,
+                    p: Number = 0,
+                    mode: str = 'instantaneous'):
+        assert type(source).__base__ == Neuron, 'Source is not a neuron'
+        assert mode in ['instantaneous', 'exponential']
+
+        for spike_index in np.argwhere(source.spikes > 0):
+            for spike in range(int(source.spikes[spike_index[0]])):
+                if np.random.rand() < p:
+                    self.spikes[spike_index[0]] += 1
+
     def get_spike_times(self) -> np.ndarray:
         """
         Converts the spike array of shape (N) to an array of flexible length
@@ -294,7 +306,7 @@ class LIFNeuron(Neuron):
 
                  E_k: Number = -70e-3,
                  tau_SRA: Number = 100e-3,
-                 w_SRA: Number = 0.06,
+                 w_SRA: Number = 0,
 
                  E_e: Number = 0,
                  tau_e: Number = 3e-3,
@@ -581,6 +593,38 @@ def plot_firing_rates(neuron_list: Iterable,
     plt.legend(loc='upper left')
     if title == None:
         ax.set_title('Firing rates')
+    else:
+        ax.set_title(str(title))
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+
+def plot_cross_correlogram(neuron_1,
+                           neuron_2,
+                           max_lag: Number = 100e-3,
+                           bin_width: Number = 5e-3,
+                           title: str = None):
+
+    fig, ax = plt.subplots(1,1, figsize=(14,7))
+
+    start_index = int(neuron_1.N - 1 - max_lag/neuron_1.dt)
+    stop_index = int(neuron_1.N - 1 + max_lag/neuron_1.dt)
+
+    cor = np.correlate(neuron_1.spikes, neuron_2.spikes, 'full')[start_index:stop_index]
+
+    lags = np.arange(-max_lag, max_lag, bin_width)
+    cor_hist = np.array([])
+
+    bin_width_ii = int(bin_width / neuron_1.dt)
+    for ii in np.arange(0, cor.size, bin_width_ii):
+        cor_hist = np.append(cor_hist, np.sum(cor[ii : ii+bin_width_ii]))
+
+
+    ax.plot(lags, cor_hist)
+
+    ax.set_xlabel('Cross-correlation lag [ms]')
+    ax.set_ylabel('Correlation []')
+    if title == None:
+        ax.set_title('Cross-correlogram')
     else:
         ax.set_title(str(title))
 
