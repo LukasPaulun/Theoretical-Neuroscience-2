@@ -4,14 +4,14 @@ import synapses
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 
-sim_time = 30
+sim_time = 10
 dt = 1e-3
 
 # Parameters for the input populations
 N_exc_pop = np.array([10, 10])
 exc_target_rate = np.array([10, 10])    # [Hz]
 
-N_inh_pop = 20
+N_inh_pop = 50
 inh_target_rate = 10    # [Hz]
 
 # Synaptic parameters
@@ -43,7 +43,7 @@ for ii in range(N_exc_pop.size):
     # Generate independent Poisson spike trains and copy spikes from source neuron
     for neuron in exc_population[ii]:
         neuron.generate_spikes(noise_rate)
-        neuron.copy_spikes(source, p, mode='exp')
+        neuron.copy_spikes(source, p, mode='inst')
 
 
 # Create inhibitory population and synapses

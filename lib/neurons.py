@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
+import time
+
 import synapses
 import devices
 
@@ -93,8 +95,7 @@ class Neuron:
                     elif mode == 'exp':
                         # Draw a shift from an exponential distribution with parameter tau_c
                         shift = np.random.exponential(tau_c)
-                        if np.random.rand() < 0.5:      # randomly shift forward or backward
-                            shift = -shift
+                        shift = shift * np.random.choice((-1,1))
 
                         target_index = spike_index[0] + int(shift / source.dt)
                         if target_index < 0:
@@ -680,36 +681,26 @@ def cross_correlogram(neuron_1,
     assert type(neuron_1).__base__ == Neuron, 'neuron_1 is not a neuron'
     assert type(neuron_2).__base__ == Neuron, 'neuron_2 is not a neuron'
 
-    lags = np.arange(-max_lag, max_lag, bin_width)
-
     _, binned_spikes_1 = neuron_1.bin_spikes(bin_width)
     _, binned_spikes_2 = neuron_2.bin_spikes(bin_width)
 
-    # Since np.correlate(..., mode='full') will compute the cross-correlations for lags with distance dt
-    # compute the start and stop index of the cross-correlations that are actually needed for the plot
-    central_index = int(round(neuron_1.sim_time/bin_width)) - 1
-    start_index = int(central_index - max_lag/bin_width)
-    stop_index = int(central_index + max_lag/bin_width)
+    fig, ax = plt.subplots(1,1, figsize=(14,7))
 
-    # Get the cross correlations from -max_lag to +max_lag
-    cor = np.correlate(binned_spikes_1, binned_spikes_2, 'full')
+    lags, cor, _, _ = ax.xcorr(binned_spikes_1, binned_spikes_2, \
+             usevlines=False, maxlags=int(max_lag / bin_width), normed=True, lw=2, linestyle = '-', marker = None)
 
-    # Compute the actual rates of the two neurons and normalize the cross-correlation
-    est_rate_1 = np.sum(neuron_1.spikes) / neuron_1.sim_time
-    est_rate_2 = np.sum(neuron_2.spikes) / neuron_2.sim_time
-    cor = cor / (est_rate_1 * est_rate_2)
+    xtickpos = np.linspace(-max_lag, max_lag, 11) / bin_width # x-tick-positions
+    xticklabels = np.linspace(-max_lag, max_lag, 11) * 1000 # x-tick-labels in [ms]
 
-    if plot:
-        fig, ax = plt.subplots(1,1, figsize=(14,7))
-        ax.plot(1000*lags, cor[start_index:stop_index])
+    ax.set_xlabel('Cross-correlation lag [ms]')
+    ax.set_xticks(xtickpos.astype(int))
+    ax.set_xticklabels(xticklabels.astype(int))
+    ax.set_ylabel('Correlation []')
+    if title == None:
+        ax.set_title('Cross-correlogram')
+    else:
+        ax.set_title(str(title))
 
-        ax.set_xlabel('Cross-correlation lag [ms]')
-        ax.set_ylabel('Correlation []')
-        if title == None:
-            ax.set_title('Cross-correlogram')
-        else:
-            ax.set_title(str(title))
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
 
-        plt.tight_layout(rect=[0, 0.03, 1, 0.97])
-
-    return lags, cor[start_index:stop_index]
+    return lags, cor

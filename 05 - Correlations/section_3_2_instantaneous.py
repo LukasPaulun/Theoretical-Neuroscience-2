@@ -32,7 +32,7 @@ for ii in range(c.size):
     # Plot spike trains and correlograms
     neurons.plot_spikes(population[ii], title='Spike trains of population with c = ' + str(c[ii]))
 
-    neurons.cross_correlogram(population[ii][0], population[ii][1], \
+    lags, cor = neurons.cross_correlogram(population[ii][0], population[ii][1], \
                                    max_lag=100e-3, bin_width=5e-3, \
                                    title='Cross-correlogram of first two neurons from population with c = ' + str(c[ii]))
 
