@@ -97,7 +97,7 @@ class Neuron:
                         shift = np.random.exponential(tau_c)
                         shift = shift * np.random.choice((-1,1))
 
-                        target_index = spike_index[0] + int(shift / source.dt)
+                        target_index = spike_index[0] + int(round(shift / source.dt))
                         if target_index < 0:
                             target_index = 0
                         elif target_index >= source.N:
@@ -127,7 +127,7 @@ class Neuron:
         binned_time = np.arange(0, self.sim_time, bin_width)
         binned_spikes = np.array([])
 
-        bin_width_ii = int(bin_width / self.dt)
+        bin_width_ii = int(round(bin_width / self.dt))
 
         for ii in range(0, self.N, bin_width_ii):
             binned_spikes = np.append(binned_spikes, \
@@ -374,6 +374,11 @@ class LIFNeuron(Neuron):
                  tau_SRA: Number = 100e-3,
                  w_SRA: Number = 0,
 
+                 synaptic_normalization = False,
+                 W_tot: Number = 3,
+                 nu_SN: Number = 0.2,
+                 step_SN: Number = 1,
+
                  E_e: Number = 0,
                  tau_e: Number = 3e-3,
 
@@ -397,6 +402,10 @@ class LIFNeuron(Neuron):
 
         self.neuron_input = np.array([])
         self.synapses = np.array([])
+
+        self.W_tot = W_tot
+        self.nu_SN = nu_SN
+        self.step_SN = step_SN
 
         self.g_e = np.zeros(self.N)
         self.E_e = E_e
@@ -493,7 +502,7 @@ class LIFNeuron(Neuron):
                         self.g_i[t+1] += synapse.weight[t]*neuron.spikes[t]
 
                 # Update synaptic weights
-                synapse.update_weights(t, neuron, self)
+                synapse.update_weights(t, neuron, self, W_tot=self.W_tot, nu_SN=self.nu_SN, step_SN=self.step_SN)
 
             # Compute conductance of SRA (spike rate adaptation)
             if self.w_SRA > 0:
@@ -522,8 +531,8 @@ class LIFNeuron(Neuron):
         assert stop <= self.sim_time, 'stop must be <= sim_time'
         assert start < stop, 'start must be < stop'
 
-        start_idx = int(start / self.dt)
-        stop_idx = int(stop / self.dt)-1
+        start_idx = int(round(start / self.dt))
+        stop_idx = int(round(stop / self.dt))-1
 
         fig, ax = plt.subplots(1, 1, figsize=(14,7))
 
@@ -589,15 +598,17 @@ def plot_spikes(neuron_list: Iterable,
     fig, ax = plt.subplots(1,1, figsize=(14,7))
 
     for ii, neuron in enumerate(neuron_list):
-        for spike_time in neuron.time[neuron.spikes > 0]:
-            ax.plot([spike_time, spike_time], [ii+0.95, ii+1.05], color='black')
+        spike_times = neuron.get_spike_times()
+        ax.scatter(spike_times, (ii+1)*np.ones_like(spike_times), \
+                   color='black', marker='.')
 
     sim_time = max([neuron.sim_time for neuron in neuron_list])
     ax.set_xlim([0, sim_time])
 
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('Neuron')
-    ax.set_yticks(np.arange(sum(1 for _ in neuron_list)) + 1)
+
+    ax.set_yticks(np.arange(0, sum(1 for _ in neuron_list)+1, 5))
     if title == None:
         ax.set_title('Spike trains')
     else:
@@ -687,7 +698,7 @@ def cross_correlogram(neuron_1,
     fig, ax = plt.subplots(1,1, figsize=(14,7))
 
     lags, cor, _, _ = ax.xcorr(binned_spikes_1, binned_spikes_2, \
-             usevlines=False, maxlags=int(max_lag / bin_width), normed=True, lw=2, linestyle = '-', marker = None)
+             usevlines=False, maxlags=int(round(max_lag / bin_width)), normed=True, lw=2, linestyle = '-', marker = None)
 
     xtickpos = np.linspace(-max_lag, max_lag, 11) / bin_width # x-tick-positions
     xticklabels = np.linspace(-max_lag, max_lag, 11) * 1000 # x-tick-labels in [ms]

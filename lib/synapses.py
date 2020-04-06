@@ -49,11 +49,15 @@ class Synapse:
                  dt: Number = 0,
 
                  typ: str = 'exc',
-                 init_weight: Number = 1):
+                 init_weight: Number = 1,
+
+                 normalize: bool = False
+                 ):
 
         assert dt > 0, 'dt must be greater than zero'
         assert sim_time >= 0, 'sim_time must be greater than or equal to zero'
         assert typ=='exc' or typ=='inh', 'Connection-type must be \'exc\' or \'inh\''
+
 
         self.sim_time = sim_time
         self.dt = dt
@@ -69,8 +73,32 @@ class Synapse:
 
         self.typ = typ
 
-    def update_weights(self, *args, **kwargs):
-        pass
+        self.normalize = normalize
+
+    def update_weights(self,
+                       t: Number,
+                       pre_neuron,
+                       post_neuron,
+                       *args, **kwargs):
+        assert type(pre_neuron).__bases__[0] == neurons.Neuron, 'pre_neuron is not from parent neurons.Neuron'
+        assert type(post_neuron).__bases__[0] == neurons.Neuron, 'post_neuron is not from parent neurons.Neuron'
+
+        if self.normalize:
+            assert 'W_tot' in kwargs.keys(), 'Synaptic normalization requires the parameter \'W_tot\''
+            assert 'nu_SN' in kwargs.keys(), 'Synaptic normalization requires the parameter \'nu_SN\''
+            assert 'step_SN' in kwargs.keys(), 'Synaptic normalization requiers the parameter \'step_SN\''
+
+            if t % (kwargs['step_SN'] / pre_neuron.dt) == 0:
+                cur_sum = 0
+                for synapse in post_neuron.synapses:
+                    if synapse.normalize:
+                        cur_sum += synapse.weight[t]
+                norm_factor = 1 + kwargs['nu_SN'] * (kwargs['W_tot']/cur_sum - 1)
+                self.weight[t+1:] = self.weight[t] * norm_factor
+                #print(norm_factor)
+
+        else:
+            pass
 
 
 class STDPSynapse(Synapse):
@@ -98,6 +126,7 @@ class STDPSynapse(Synapse):
                  dt: Number = 0,
                  typ: str = 'exc',
                  init_weight: Number = 0.5,
+                 normalize: bool = False,
 
                  max_weight: Number = 6,
 
@@ -108,7 +137,7 @@ class STDPSynapse(Synapse):
                  tau_D: Number = 34e-3,
 
                  mode: str = 'narrow_nearest_neighbor'):
-        Synapse.__init__(self, sim_time, dt, typ, init_weight)
+        Synapse.__init__(self, sim_time, dt, typ, init_weight, normalize)
 
         self.max_weight = max_weight
 
@@ -123,7 +152,8 @@ class STDPSynapse(Synapse):
     def update_weights(self,
                        t : Number,
                        pre_neuron,
-                       post_neuron
+                       post_neuron,
+                       *args, **kwargs
                        ):
         """
         Update the weights according to the STDP rule.
@@ -137,9 +167,7 @@ class STDPSynapse(Synapse):
         post_neuron : TYPE
             Postsynaptic neuron.
         """
-        assert type(pre_neuron).__bases__[0] == neurons.Neuron, 'pre_neuron is not from parent neurons.Neuron'
-        assert type(post_neuron).__bases__[0] == neurons.Neuron, 'postert a string or n_neuron is not from parent neurons.Neuron'
-
+        Synapse.update_weights(self, t, pre_neuron, post_neuron, *args, **kwargs)
 
         if self.mode == 'narrow_nearest_neighbor':
             # LTP: Postsynaptic neuron spikes, presynaptic neuron does not spike

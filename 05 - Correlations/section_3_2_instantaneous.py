@@ -27,7 +27,7 @@ for ii in range(c.size):
     # Generate independent spikes with noise_rate and copy spikes from source with probability p
     for neuron in population[ii]:
         neuron.generate_spikes(noise_rate)
-        neuron.copy_spikes(source, p, mode='inst')
+        neuron.copy_spikes(source, p, mode='exp', tau_c=10e-3)
 
     # Plot spike trains and correlograms
     neurons.plot_spikes(population[ii], title='Spike trains of population with c = ' + str(c[ii]))
