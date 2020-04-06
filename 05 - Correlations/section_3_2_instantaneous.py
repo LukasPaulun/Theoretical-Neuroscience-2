@@ -10,22 +10,24 @@ target_rate = 10
 
 # Correlation parameters
 c = np.array([0.2, 0.5])
-p = np.sqrt(c)
-noise_rate = (1-p) * target_rate
 
 # Create populations of Poisson neurons
 population = [np.array([neurons.PoissonNeuron(sim_time, dt) for _ in range(N_pop)])
                 for _ in range(c.size)]
 
 for ii in range(c.size):
+    # Compute copy probability
+    p = np.sqrt(c[ii])
+    noise_rate = (1-p) * target_rate
+
     # Create source neuron
     source = neurons.PoissonNeuron(sim_time, dt)
     source.generate_spikes(target_rate)
 
     # Generate independent spikes with noise_rate and copy spikes from source with probability p
     for neuron in population[ii]:
-        neuron.generate_spikes(noise_rate[ii])
-        neuron.copy_spikes(source, p[ii], mode='inst')
+        neuron.generate_spikes(noise_rate)
+        neuron.copy_spikes(source, p, mode='inst')
 
     # Plot spike trains and correlograms
     neurons.plot_spikes(population[ii], title='Spike trains of population with c = ' + str(c[ii]))

@@ -11,7 +11,7 @@ dt = 1e-3
 N_exc_pop = np.array([10, 10])
 exc_target_rate = np.array([10, 10])    # [Hz]
 
-N_inh_pop = 10
+N_inh_pop = 20
 inh_target_rate = 10    # [Hz]
 
 # Synaptic parameters
@@ -21,7 +21,7 @@ A_P = 0.02
 A_D = -0.01
 
 # Correlation parameters
-c = np.array([0.1, 0.5])
+c = np.array([0.1, 0.2])
 
 exc_population = []
 exc_synapses = []
@@ -43,7 +43,7 @@ for ii in range(N_exc_pop.size):
     # Generate independent Poisson spike trains and copy spikes from source neuron
     for neuron in exc_population[ii]:
         neuron.generate_spikes(noise_rate)
-        neuron.copy_spikes(source, p, mode='inst')
+        neuron.copy_spikes(source, p, mode='exp')
 
 
 # Create inhibitory population and synapses

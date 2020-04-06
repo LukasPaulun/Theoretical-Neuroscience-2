@@ -62,7 +62,7 @@ class Neuron:
                     source,
                     p: Number = 0,
                     mode: str = 'inst',
-                    tau_c: Number = 20e-3):
+                    tau_c: Number = 5e-3):
         """
         Copies spikes from a source neuron with probability p into the neuron.
         Can be used to generate correlated populations of neurons

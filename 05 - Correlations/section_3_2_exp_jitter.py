@@ -29,7 +29,7 @@ population = np.array([neurons.PoissonNeuron(sim_time, dt) for _ in range(N_pop)
 # Generate independent spike trains and copy spikes from rousce
 for neuron in population:
     neuron.generate_spikes(noise_rate)
-    neuron.copy_spikes(source, p, mode='inst', tau_c=tau_c)
+    neuron.copy_spikes(source, p, mode='exp', tau_c=tau_c)
 
 
 lags = np.arange(-max_lag, max_lag, bin_width)
