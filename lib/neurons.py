@@ -354,7 +354,7 @@ class LIFNeuron(Neuron):
     W_tot: Number, optional
         Total weight of incoming synapses for synaptic normalization. Default is 5.
     nu_SN: Number, optional
-        Learning factor of synaptic normalization. Default is 0.2
+        Normalization rate for synaptic normalization. Default is 0.2
     step_SN: Number, optional
         When to normalize synaptic weights in [s]. Default is 1.
 
