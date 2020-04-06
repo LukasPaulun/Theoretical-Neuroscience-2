@@ -328,8 +328,7 @@ class LIFNeuron(Neuron):
         Time of simulation in [s]. The default is 0.
     dt : Number, optional
         Time resolution in []. The default is 0.
-    typ : str, optional
-        Excitatory \'exc\' or inhibitory \'inh\' neuron. The default is 'exc'
+
     V_init : Number, optional
         Initial membrane potential. The default is -60e-3.
     tau_m : Number, optional
@@ -342,14 +341,30 @@ class LIFNeuron(Neuron):
         Potential at a spike. The default is 0.
     V_reset : Number, optional
         Reset potential. The default is -70e-3.
+
     R_m : Number, optional
         Membrane resistance. The default is 10e6.
+    E_k: Number, optional
+        Potassium reversal potential for spike rate adaptation (SRA). Default is -70e-3.
+    tau_SRA: Number, optional
+        Time constant for SRA. Default is 100e-3.
+    w_SRA: Number, optional
+        Weight difference for SRA. Default is 0 (no SRA).
+
+    W_tot: Number, optional
+        Total weight of incoming synapses for synaptic normalization. Default is 5.
+    nu_SN: Number, optional
+        Learning factor of synaptic normalization. Default is 0.2
+    step_SN: Number, optional
+        When to normalize synaptic weights in [s]. Default is 1.
+
     E_e : Number, optional
         Reversal potential for exc input. The default is 0.
     tau_e : Number, optional
         EPSP time constant. The default is 3e-3.
     w_e : Number, optional
         Weight of exc synapse. The default is 0.5.
+
     E_i : Number, optional
         Reversal potential for inh input. The default is -80e-3.
     tau_i : Number, optional
@@ -374,8 +389,7 @@ class LIFNeuron(Neuron):
                  tau_SRA: Number = 100e-3,
                  w_SRA: Number = 0,
 
-                 synaptic_normalization = False,
-                 W_tot: Number = 3,
+                 W_tot: Number = 5,
                  nu_SN: Number = 0.2,
                  step_SN: Number = 1,
 
@@ -661,7 +675,6 @@ def cross_correlogram(neuron_1,
                       neuron_2,
                       max_lag: Number = 100e-3,
                       bin_width: Number = 5e-3,
-                      plot: bool = True,
                       title: str = None) -> Iterable[np.ndarray]:
     """
     Compute (and plot) a cross-correlogram of two given neurons
@@ -676,8 +689,6 @@ def cross_correlogram(neuron_1,
         The plot will go from -max_lag to +max_lag in [s]. The default is 100e-3.
     bin_width : Number, optional
         Width of bins in [s]. The default is 5e-3.
-    plot : bool, optional
-        Whether the correlogram should be plotted. Default is True.
     title : str, optional
         Title of figure. The default is None.
 

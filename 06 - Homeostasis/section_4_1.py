@@ -87,9 +87,14 @@ plt.legend(handles=[blue_line, orange_line], loc='upper left')
 weights1 = [syn.weight[-1] for syn in exc_synapses[0]]
 weights2 = [syn.weight[-1] for syn in exc_synapses[1]]
 
-plt.figure()
-plt.hist(weights1)
-plt.hist(weights2)
+fig, ax = plt.subplots(1,1, figsize=(14,7))
+ax.hist(weights1, color='blue')
+ax.hist(weights2, color='orange')
+ax.set_xlabel('Synaptic weights')
+ax.set_ylabel('Count')
+ax.set_title('Histogram of synaptic weights for the two excitatory input population')
+ax.set_legend(handles=[blue_line, orange_line], loc='upper left')
+
 
 
 

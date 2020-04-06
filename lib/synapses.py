@@ -28,6 +28,8 @@ class Synapse:
         Excitatory \'exc\' or inhibitory \'inh\' neuron. The default is 'exc'.
     init_weight : Number, optional
         Initial weights of the synapse. The default is 1.
+    normalize : bool, optional
+        Whether the synapse should be subject to synaptic normalization. Default is False.
 
     Attributes
     ----------
@@ -43,6 +45,8 @@ class Synapse:
         array of all timesteps of the simulation, shape (N)
     weight : np.ndarray
         array with synaptic weights at each timestep, initialized to init_weight, shape (N)
+    normalize : bool
+        Where normalize is stored
     """
     def __init__(self,
                  sim_time: Number = 0,
@@ -80,6 +84,26 @@ class Synapse:
                        pre_neuron,
                        post_neuron,
                        *args, **kwargs):
+        """
+        Generic function to update the weights of the synapse. Can perform
+        synaptic normalization if self.normalize is True.
+
+        Parameters
+        ----------
+        t : Number
+            Time index where to perform the weight update.
+        pre_neuron : Neuron
+            Presynaptic neuron.
+        post_neuron : Neuron
+            Postsynaptic neuron.
+        *args :
+        **kwargs :
+            If self.normalize is True this should contain:
+                W_tot: Total weight for synaptic normalization.
+                nu_SN: Normalization rate.
+                step_SN: Steps when to perform synaptic normalization
+        """
+
         assert type(pre_neuron).__bases__[0] == neurons.Neuron, 'pre_neuron is not from parent neurons.Neuron'
         assert type(post_neuron).__bases__[0] == neurons.Neuron, 'post_neuron is not from parent neurons.Neuron'
 
@@ -95,7 +119,6 @@ class Synapse:
                         cur_sum += synapse.weight[t]
                 norm_factor = 1 + kwargs['nu_SN'] * (kwargs['W_tot']/cur_sum - 1)
                 self.weight[t+1:] = self.weight[t] * norm_factor
-                #print(norm_factor)
 
         else:
             pass
@@ -162,10 +185,16 @@ class STDPSynapse(Synapse):
         ----------
         t : Number
             Current time step.
-        pre_neuron : TYPE
+        pre_neuron : Neuron
             Presynaptic neuron.
-        post_neuron : TYPE
+        post_neuron : Neuron
             Postsynaptic neuron.
+        *args :
+        **kwargs :
+            If self.normalize is True this should contain:
+                W_tot: Total weight for synaptic normalization.
+                nu_SN: Normalization rate.
+                step_SN: Steps when to perform synaptic normalization
         """
         Synapse.update_weights(self, t, pre_neuron, post_neuron, *args, **kwargs)
 
