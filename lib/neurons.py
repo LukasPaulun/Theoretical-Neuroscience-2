@@ -655,10 +655,11 @@ def plot_firing_rates(neuron_list: Iterable,
         x = np.arange(0, neuron.sim_time, bin_width)
         y = np.histogram(spike_times, bins=np.append(x, neuron.sim_time))[0] / bin_width
 
-        ax.plot(x, y, label='Neuron ' + str(ii+1))
+        ax.plot(np.append(x, neuron.sim_time), np.append(0, y), label='Neuron ' + str(ii+1))
 
     sim_time = max([neuron.sim_time for neuron in neuron_list])
     ax.set_xlim([0, sim_time])
+    ax.set_ylim(bottom=0)
 
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('Firing rate [Hz]')

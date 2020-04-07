@@ -233,6 +233,93 @@ class STDPSynapse(Synapse):
                     if new_weight <= self.max_weight:
                         self.weight[t+1:] = new_weight
 
+class STPSynapse(Synapse):
+    """
+    STP Synapse
+    ----------
+
+    """
+
+    def __init__(self,
+                 sim_time: Number = 0,
+                 dt: Number = 0,
+                 typ: str = 'exc',
+                 init_weight: Number = 0.5,
+                 normalize: bool = False,
+
+                 max_weight: Number = 1,
+                 U: Number = 0.2,
+
+                 STF: bool = True,
+                 tau_f = 50e-3,
+
+                 STD: bool = True,
+                 tau_d = 750e-3):
+
+        Synapse.__init__(self, sim_time, dt, typ, init_weight, normalize)
+
+        self.max_weight = max_weight
+        self.U = U
+        self.STF = STF
+        self.tau_f = tau_f
+        self.STD = STD
+        self.tau_d = tau_d
+
+        if self.N == 0:
+            self.u = np.array([])
+            self.x = np.array([])
+        else:
+            self.u = np.zeros(self.N)
+            self.x = np.ones(self.N)
+
+    def update_weights(self,
+                       t : Number,
+                       pre_neuron,
+                       post_neuron,
+                       *args, **kwargs
+                       ):
+        Synapse.update_weights(self, t, pre_neuron, post_neuron, *args, **kwargs)
+
+        if self.STF:
+            self.u[t+1:] = self.u[t] + self.dt * (-self.u[t] / self.tau_f)
+        if self.STD:
+            self.x[t+1:] = self.x[t] + self.dt * ((1-self.x[t]) / self.tau_d)
+
+        if pre_neuron.spikes[t] > 0:
+            #self.weight[t] = self.max_weight * self.u[t+1] * self.x[t]
+
+            if self.STF:
+                self.u[t+1:] += self.U * (1-self.u[t])
+            if self.STD:
+                self.x[t+1:] -= self.u[t+1]*self.x[t]
+
+            self.weight[t+1:] = self.max_weight * self.u[t+1] * self.x[t-1]
+
+    def plot_STP_dynamics(self, title: str = None):
+        """
+        Plot evolution of short-term plasticity variables u and x
+
+        Parameter
+        ----------
+        title : str, optional
+            Title for the plot. Default is None.
+        """
+
+        fig, ax = plt.subplots(1,1, figsize=(14,7))
+
+        ax.plot(self.time, self.u, label=r'Neurotransmitter release probability $u$')
+        ax.plot(self.time, self.x, label=r'Fraction of available neurotransmitter $x$')
+
+        ax.set_xlabel('Time [s]')
+        ax.set_ylabel('[]')
+        ax.legend(loc='upper right')
+        if title == None:
+            ax.set_title(r'Short-term plasticity dynamics')
+        else:
+            ax.set_title(str(title))
+
+        plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+
 
 def plot_synaptic_weights(synapse_list: Iterable,
                  title: str = None,

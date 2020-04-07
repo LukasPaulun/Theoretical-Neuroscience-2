@@ -1,10 +1,11 @@
+#%%
 import numpy as np
 import neurons
 import synapses
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 
-sim_time = 200
+sim_time = 50
 dt = 1e-3
 
 # Parameters for the input populations
@@ -28,6 +29,7 @@ W_tot = 5
 nu_SN = 0.2
 step_SN = 1      # when to normalise in [s]
 
+#%%
 exc_population = []
 exc_synapses = []
 # Loop through all populations
@@ -60,14 +62,18 @@ inh_synapses = np.array([synapses.Synapse(sim_time, dt, typ='inh', \
 for neuron in inh_population:
     neuron.generate_spikes(inh_target_rate)
 
+#%%
 # Create LIF neuron and connect input populations
 LIF = neurons.LIFNeuron(sim_time, dt, tau_m=20e-3, W_tot=W_tot, nu_SN=nu_SN, step_SN=step_SN)
+
 LIF.connect_neurons(exc_population[0], exc_synapses[0])
 LIF.connect_neurons(exc_population[1], exc_synapses[1])
 LIF.connect_neurons(inh_population, inh_synapses)
 
 LIF.simulate()
 
+
+#%%
 # Make plots
 neurons.plot_firing_rates([LIF])
 
